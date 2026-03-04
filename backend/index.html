@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <title>QR Presensi Dosen</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 40px; background: #f4f7f6; }
+    .card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
+    input { width: 90%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; }
+    button { padding: 12px 20px; background: #007BFF; color: white; border: none; border-radius: 5px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold; }
+    button:hover { background: #0056b3; }
+    #qrcode { margin-top: 20px; display: flex; justify-content: center; }
+    #status { margin-top: 15px; font-size: 14px; color: #555; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>Buat Sesi Kelas</h2>
+    
+    <input type="text" id="course_id" placeholder="Kode Matkul (ex: cloud-101)" value="cloud-101">
+    <input type="text" id="session_id" placeholder="Sesi (ex: sesi-02)" value="sesi-02">
+    
+    <button onclick="generateQR()">Tampilkan QR Code</button>
+
+    <div id="qrcode"></div>
+    <div id="status">Silakan masukkan data kelas dan tekan tombol.</div>
+  </div>
+
+  <script>
+    // PERHATIAN: Ganti URL di bawah ini dengan URL Web App GAS kelompokmu!
+    const BASE_URL = "https://script.google.com/macros/s/AKfycby8xMWz8KYRunUyAZpfiaO2nBWm3D_2wwhZfaXfypTSqeN1fYKfrZhl70eOJDrnFHeBiQ/exec";
+
+    function generateQR() {
+      const courseId = document.getElementById('course_id').value;
+      const sessionId = document.getElementById('session_id').value;
+      const qrContainer = document.getElementById('qrcode');
+      const statusText = document.getElementById('status');
+
+      // Reset tampilan
+      qrContainer.innerHTML = "";
+      statusText.innerHTML = "Membuat QR...";
+
+      // Siapkan payload sesuai Kontrak API
+      const payload = {
+        course_id: courseId,
+        session_id: sessionId,
+        ts: new Date().toISOString()
+      };
+
+      // Hit API Generate QR
+      fetch(BASE_URL + "?path=presence/qr/generate", {
+        method: 'POST',
+        headers: {
+           // Menggunakan text/plain agar bisa dibaca oleh GAS dengan aman
+          'Content-Type': 'text/plain;charset=utf-8', 
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(response => response.json())
+      .then(res => {
+        if (res.ok) {
+          // Jika sukses, ubah token menjadi gambar QR
+          new QRCode(qrContainer, {
+            text: res.data.qr_token,
+            width: 250,
+            height: 250
+          });
+          
+          statusText.innerHTML = `
+            <strong>Token:</strong> ${res.data.qr_token} <br>
+            <strong>Berlaku hingga:</strong> ${new Date(res.data.expires_at).toLocaleTimeString()}
+          `;
+        } else {
+          statusText.innerHTML = "Gagal: " + res.error;
+        }
+      })
+      .catch(err => {
+        statusText.innerHTML = "Error memanggil API server.";
+        console.error(err);
+      });
+    }
+  </script>
+
+</body>
+</html>
